@@ -1,6 +1,7 @@
 package net.engineeringdigest.journal.app.entity;
 
 import lombok.*;
+import net.engineeringdigest.journal.app.enums.Sentiment;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -24,6 +25,8 @@ public class JournalEntry {
     private String content;
 
     private LocalDateTime date;
+
+    private Sentiment sentiment;
 
 //    public void setTitle(String title) {
 //        this.title = title;

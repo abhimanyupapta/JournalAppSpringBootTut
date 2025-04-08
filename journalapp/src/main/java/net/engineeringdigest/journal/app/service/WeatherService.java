@@ -27,15 +27,31 @@ public class WeatherService {
     @Autowired
     private RestTemplate restTemplate; //handles http requests for us and gives us the response
 
+    @Autowired
+    RedisService redisService;
+
     public WeatherResponse getWeather(String city) {
-        ResponseEntity<WeatherResponse> response;
-        try {
-            String finalAPI = appCache.getAppCache().get(AppCache.Keys.WEATHER_API.toString()).replace(PlaceHolders.API_KEY, apiKey).replace(PlaceHolders.CITY, city);
-            response = restTemplate.exchange(finalAPI, HttpMethod.GET, null, WeatherResponse.class);
-            return response.getBody();
-        } catch(Exception e) {
-             log.error("Exception while fetching weather");
-             throw new RuntimeException(e);
+
+        log.info("Checking cached weather");
+        WeatherResponse weatherResponse = redisService.get("weather_of_"+ city, WeatherResponse.class);
+        if(weatherResponse != null) {
+            log.info("returning cached value");
+            return weatherResponse;
+        } else {
+            log.info("no cached value getting from api");
+            ResponseEntity<WeatherResponse> response;
+            try {
+                String finalAPI = appCache.getAppCache().get(AppCache.Keys.WEATHER_API.toString()).replace(PlaceHolders.API_KEY, apiKey).replace(PlaceHolders.CITY, city);
+                response = restTemplate.exchange(finalAPI, HttpMethod.GET, null, WeatherResponse.class);
+                WeatherResponse body = response.getBody();
+                if(body != null) {
+                    redisService.set("weather_of_"+ city, body, 300L);
+                }
+                return body;
+            } catch(Exception e) {
+                log.error("Exception while fetching weather");
+                return null;
+            }
         }
     }
 }
