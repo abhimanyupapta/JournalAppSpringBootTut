@@ -5,9 +5,11 @@ import net.engineeringdigest.journal.app.cache.AppCache;
 import net.engineeringdigest.journal.app.entity.JournalEntry;
 import net.engineeringdigest.journal.app.entity.User;
 import net.engineeringdigest.journal.app.enums.Sentiment;
+import net.engineeringdigest.journal.app.model.SentimentData;
 import net.engineeringdigest.journal.app.repository.UserRepositoryImpl;
 import net.engineeringdigest.journal.app.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +32,9 @@ public class UserScheduler {
 
     @Autowired
     private AppCache appCache;
+
+    @Autowired
+    private KafkaTemplate<String, SentimentData> kafkaTemplate;
 
     @Scheduled(cron = "0 0 9 * * SUN")//cron expression can be generated from cron site
     public void fetchUsersAndSendMail() {
@@ -69,11 +74,15 @@ public class UserScheduler {
 
             log.info("most freq sentiment is: {}", mostFreqSentiment);
             if(mostFreqSentiment != null) {
-                log.info("sending email to the user");
-                emailService.sendEmail(u.getEmail(), "Sentiment for last 7 days", mostFreqSentiment.toString());
+                log.info("sending email and sentiment to the topic");
+                SentimentData sentimentData = SentimentData.builder()
+                        .email(u.getEmail())
+                        .sentiment(mostFreqSentiment.toString())
+                        .build();
+
+                kafkaTemplate.send("weekly_sentiments", sentimentData.getEmail(), sentimentData);
             }
         }
-
 
     }
 
